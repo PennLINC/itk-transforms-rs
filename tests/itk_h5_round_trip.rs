@@ -1,33 +1,23 @@
 //! Integration tests for the ITK Composite.h5 reader.
 //!
 //! Cross-checks against nitransforms' Python implementation: the canonical
-//! `affine-antsComposite.h5` fixture in
-//! `/Users/mcieslak/projects/odx/nitransforms/nitransforms/tests/data/` is
-//! loaded, converted to RAS+, and the resulting matrix is asserted against
-//! values computed independently in Python (see comments in source).
+//! `affine-antsComposite.h5` fixture vendored under
+//! `tests/fixtures/nitransforms/` is loaded, converted to RAS+, and the
+//! resulting matrix is asserted against values computed independently in
+//! Python (see comments in source).
 
 use std::path::PathBuf;
 
 use itk_transforms_rs::{read_itk_h5, TransformChain, TransformComponent};
 
-const FIXTURE: &str =
-    "/Users/mcieslak/projects/odx/nitransforms/nitransforms/tests/data/affine-antsComposite.h5";
-
-fn fixture_path() -> Option<PathBuf> {
-    let p = PathBuf::from(FIXTURE);
-    if p.exists() {
-        Some(p)
-    } else {
-        None
-    }
+fn fixture_path() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/nitransforms/affine-antsComposite.h5")
 }
 
 #[test]
 fn parses_canonical_ants_composite_fixture() {
-    let Some(path) = fixture_path() else {
-        eprintln!("skipping: fixture not present at {FIXTURE}");
-        return;
-    };
+    let path = fixture_path();
     let chain: TransformChain = read_itk_h5(&path).expect("reader should succeed");
     assert_eq!(
         chain.components.len(),
