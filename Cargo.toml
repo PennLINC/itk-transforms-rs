@@ -1,0 +1,20 @@
+[package]
+name = "itk-transforms-rs"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75"
+authors = ["Matt Cieslak <mattcieslak@gmail.com>"]
+description = "Reader for ITK Composite.h5 spatial transforms (ANTs antsRegistration output), normalised to RAS+ for downstream Rust neuroimaging crates."
+license = "Apache-2.0 OR MIT"
+repository = "https://github.com/mattcieslak/itk-transforms-rs"
+readme = "README.md"
+
+[dependencies]
+nalgebra = "0.33"
+ndarray = "0.16"
+hdf5-metno = { version = "0.12.4", default-features = false, features = ["static", "zlib"] }
+nifti = { version = "0.17", features = ["nalgebra_affine"] }
+thiserror = "2"
+
+[dev-dependencies]
+tempfile = "3"
