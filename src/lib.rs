@@ -1,9 +1,16 @@
 //! ITK composite spatial transforms in pure Rust, normalised to RAS+.
 //!
-//! This crate parses the `*Composite.h5` files written by ANTs
-//! `antsRegistration` and the `Insight Transform File V1.0` plain-text format
-//! used by ITK and ANTs for affines. Components are returned as a
-//! [`TransformChain`] of [`Affine3`] and [`DisplacementField`] entries.
+//! This crate parses three ITK transform formats:
+//!
+//! - `Composite.h5` (HDF5) — written by ANTs `antsRegistration`; carries
+//!   composite chains of affine and displacement-field components.
+//! - `Insight Transform File V1.0` (`.txt`) — ASCII format for affine-only
+//!   chains.
+//! - MATLAB v4 binary (`.mat`) — ITK's `MatlabTransformIO` format, used by
+//!   ANTs for affine components like `*0GenericAffine.mat`.
+//!
+//! Components are returned as a [`TransformChain`] of [`Affine3`] and
+//! [`DisplacementField`] entries.
 //!
 //! # Coordinate convention
 //!
@@ -45,6 +52,7 @@ pub mod grid;
 pub mod warp;
 
 pub(crate) mod itk_h5;
+pub(crate) mod itk_mat;
 pub(crate) mod itk_txt;
 pub(crate) mod lps_ras;
 
@@ -53,6 +61,7 @@ pub use crate::chain::{TransformChain, TransformComponent};
 pub use crate::error::{Result, XfmError};
 pub use crate::grid::TargetGrid;
 pub use crate::itk_h5::read_itk_h5;
+pub use crate::itk_mat::read_itk_mat;
 pub use crate::itk_txt::read_itk_txt;
 pub use crate::warp::DisplacementField;
 
@@ -62,15 +71,18 @@ use std::path::Path;
 ///
 /// - `.h5` → [`read_itk_h5`] (composite affine + warp)
 /// - `.txt` → [`read_itk_txt`] (Insight Transform File V1.0, affine-only)
+/// - `.mat` → [`read_itk_mat`] (ITK MATLAB v4 binary, affine-only)
 ///
 /// Anything else returns [`XfmError::InvalidFile`].
 pub fn read_itk(path: &Path) -> Result<TransformChain> {
     match path.extension().and_then(|e| e.to_str()) {
         Some(ext) if ext.eq_ignore_ascii_case("h5") => read_itk_h5(path),
         Some(ext) if ext.eq_ignore_ascii_case("txt") => read_itk_txt(path),
+        Some(ext) if ext.eq_ignore_ascii_case("mat") => read_itk_mat(path),
         _ => Err(XfmError::InvalidFile {
             path: path.to_path_buf(),
-            reason: "expected .h5 (Composite) or .txt (Insight Transform File)".into(),
+            reason: "expected .h5 (Composite), .txt (Insight Transform File), or .mat (ITK MATLAB)"
+                .into(),
         }),
     }
 }

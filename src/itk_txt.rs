@@ -106,8 +106,13 @@ fn parse(body: &str, path: &Path) -> Result<TransformChain> {
         });
     }
 
+    // ITK Insight Transform File V1.0 stores `#Transform N` sections in
+    // queue-addition order, matching the h5 convention. ITK's
+    // CompositeTransform applies its queue last-first (rbegin → rend), so we
+    // push sections in *reverse* file order to align with our chain's
+    // stored-order apply semantics.
     let mut chain = TransformChain::new();
-    for (idx, section) in sections.into_iter().enumerate() {
+    for (idx, section) in sections.into_iter().enumerate().rev() {
         let ttype = section
             .transform_type
             .ok_or_else(|| XfmError::InvalidFile {

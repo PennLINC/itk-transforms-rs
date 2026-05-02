@@ -1,8 +1,18 @@
 //! Single source of truth for the LPS+ ↔ RAS+ flip.
 //!
 //! ITK works in LPS+ (Left-Posterior-Superior); NIfTI/ODX/TRX/MRtrix work in
-//! RAS+ (Right-Anterior-Superior). The conversion is `diag(-1, -1, 1, 1)`,
-//! applied as a similarity transform: `M_ras = LPS · M_itk · LPS`.
+//! RAS+ (Right-Anterior-Superior). The world-frame conversion matrix is
+//! `LPS = diag(-1, -1, 1, 1)`, applied differently depending on what is
+//! being converted:
+//!
+//! - **Affine transform** (point in frame F → point in frame F): the
+//!   transform itself needs both *input* and *output* re-expressed in the
+//!   target frame, so `M_ras = LPS · M_itk · LPS` (a similarity sandwich,
+//!   self-inverse). Use [`affine_itk_to_ras`].
+//! - **Grid affine** (voxel index → world point): voxel indices are
+//!   coordinate-system-agnostic; only the *output* world point needs the
+//!   flip, so `M_ras = LPS · M_itk` (left-multiply only). Apply [`lps4`]
+//!   directly at the call site.
 //!
 //! Every site in this crate that crosses the ITK boundary calls into this
 //! module — there are no scattered `-1`s anywhere else.
@@ -11,7 +21,7 @@ use nalgebra::Matrix4;
 
 /// `diag(-1, -1, 1, 1)`: flips x and y, keeps z, in homogeneous coordinates.
 #[inline]
-fn lps4() -> Matrix4<f64> {
+pub(crate) fn lps4() -> Matrix4<f64> {
     let mut m = Matrix4::identity();
     m[(0, 0)] = -1.0;
     m[(1, 1)] = -1.0;

@@ -33,7 +33,7 @@ use crate::affine::Affine3;
 use crate::chain::TransformChain;
 use crate::error::{Result, XfmError};
 use crate::grid::TargetGrid;
-use crate::lps_ras::affine_itk_to_ras;
+use crate::lps_ras::lps4;
 use crate::warp::DisplacementField;
 
 // ---- ITK layout constants ------------------------------------------------
@@ -73,7 +73,12 @@ pub fn read_itk_h5(path: &Path) -> Result<TransformChain> {
         })?;
 
     let mut indexed = collect_transform_indices(&tg)?;
-    indexed.sort_by_key(|(idx, _)| *idx);
+    // ITK writes h5 entries in queue-addition order at indices 1..N (index 0
+    // is the CompositeTransform wrapper). Its CompositeTransform::TransformPoint
+    // iterates that queue in reverse — last-added first. Our chain applies
+    // components in stored order, so we push h5 entries in *reverse* h5-index
+    // order to match ITK's apply order.
+    indexed.sort_by_key(|(idx, _)| std::cmp::Reverse(*idx));
 
     let mut chain = TransformChain::new();
     for (idx, name) in indexed {
@@ -263,7 +268,12 @@ fn read_warp(g: &Group, path: &Path) -> Result<DisplacementField> {
     itk_affine[(1, 3)] = origin[1];
     itk_affine[(2, 3)] = origin[2];
 
-    let ras_affine = affine_itk_to_ras(&itk_affine);
+    // Grid affine maps voxel index → world point. Voxel indices are
+    // coordinate-system-agnostic, so only the *output* side of this map needs
+    // the LPS→RAS flip — left-multiply by LPS, not the full sandwich. (The
+    // sandwich `LPS · M · LPS` is for affines that map points to points in
+    // the same coordinate frame; not the same operation.)
+    let ras_affine = lps4() * itk_affine;
     let grid = TargetGrid::from_matrix(ras_affine, [nx as u64, ny as u64, nz as u64]);
 
     let total = WARP_VECTOR_DIM
